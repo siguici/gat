@@ -7,6 +7,7 @@ INSTALL_DIR="$HOME/.local/bin"
 VERSION="latest"
 TMP_DIR=$(mktemp -d)
 BINARY_NAME="gat"
+UTIL_FILE="utils.sh"
 
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -38,6 +39,9 @@ function install_binary() {
   mkdir -p "$INSTALL_DIR"
   cp "$src_dir/bin/$BINARY_NAME" "$INSTALL_DIR/"
   chmod +x "$INSTALL_DIR/$BINARY_NAME"
+  if [ -f "$src_dir/bin/$UTIL_FILE" ]; then
+    cp "$src_dir/bin/$UTIL_FILE" "$INSTALL_DIR/"
+  fi
   echo "✅ Installed '$BINARY_NAME' to $INSTALL_DIR"
 }
 
