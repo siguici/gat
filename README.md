@@ -25,7 +25,7 @@ and a clear modular structure, it lets you:
 ### One-liner via `curl`
 
 ```bash
-curl -s https://raw.githubusercontent.com/siguici/gat/main/install.sh | sh
+curl -s https://raw.githubusercontent.com/siguici/gat/main/install.sh | bash
 ```
 
 > Installs `gat` into `~/.local/bin` (or globally if run with `sudo`).
