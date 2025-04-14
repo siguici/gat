@@ -37,9 +37,8 @@ git add extra.txt
 git commit -m "Extra feature commit" > /dev/null
 SECOND_FEATURE_COMMIT=$(git rev-parse HEAD)
 
-# Create a third empty commit (content already exists)
-touch file.txt
-git commit --allow-empty -m "Empty commit" > /dev/null
+# Create an explicit empty commit for cherry-pick --allow-empty test
+git commit --allow-empty -m "Empty commit for test" > /dev/null
 EMPTY_COMMIT=$(git rev-parse HEAD)
 
 git checkout main
@@ -60,6 +59,10 @@ reset_repo_state() {
   git reset --hard -q
   git clean -fdq
   git checkout main -q
+  # Ensure any ongoing cherry-pick is aborted
+  if [ -d .git/rebase-apply ] || [ -f .git/CHERRY_PICK_HEAD ]; then
+    git cherry-pick --abort || true
+  fi
 }
 
 run_test() {
