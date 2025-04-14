@@ -129,7 +129,7 @@ gat -2d cherry-pick abc123
 gat/
 ├── bin/
 │   ├── gat         # Git CLI interface
-│   └── common.sh   # Shared shell logic
+│   └── utils.sh   # Shared shell logic
 ├── install.sh      # One-liner installer
 ├── tests/          # Integration tests
 ├── README.md       # This file
