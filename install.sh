@@ -8,6 +8,8 @@ VERSION="latest"
 TMP_DIR=$(mktemp -d)
 BINARY_NAME="gat"
 
+trap 'rm -rf "$TMP_DIR"' EXIT
+
 # --- 🧠 Helper: Fetch latest release ---
 function get_latest_release() {
   curl -s "https://api.github.com/repos/$REPO/releases/latest" |
