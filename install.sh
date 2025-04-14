@@ -1,19 +1,23 @@
 #!/bin/bash
 
-# Destination for the executable
+set -e
+
+REPO="siguici/gat"
+BRANCH="main"
 INSTALL_DIR="$HOME/.local/bin"
+TMP_DIR=$(mktemp -d)
 
-# Check if the directory exists
-if [ ! -d "$INSTALL_DIR" ]; then
-  echo "Creating installation directory: $INSTALL_DIR"
-  mkdir -p "$INSTALL_DIR"
-fi
+echo "📥 Downloading $REPO..."
 
-# Copy the script to the local bin
-cp -r bin/* "$INSTALL_DIR"
+curl -sL "https://github.com/$REPO/archive/$BRANCH.tar.gz" | tar xz -C "$TMP_DIR"
+SRC_DIR="$TMP_DIR/gat-$BRANCH"
 
-# Make the scripts executable
-chmod +x "$INSTALL_DIR/gat"
-chmod +x "$INSTALL_DIR/common.sh"
+echo "📁 Installing to $INSTALL_DIR..."
 
-echo "Installation complete. You can now run 'gat' from the terminal."
+mkdir -p "$INSTALL_DIR"
+cp "$SRC_DIR/bin/gat" "$INSTALL_DIR/gat"
+cp "$SRC_DIR/bin/common.sh" "$INSTALL_DIR/common.sh"
+chmod +x "$INSTALL_DIR/gat" "$INSTALL_DIR/common.sh"
+
+echo "✅ gat is now installed in $INSTALL_DIR"
+echo "👉 Make sure $INSTALL_DIR is in your \$PATH"
