@@ -13,8 +13,14 @@ fi
 date="$1"
 shift
 
-# Validate the date format
+# Extract optional --time flag
+time=$(extract_time_flag "$@")
+
+# Validate and resolve the date
 validate_date "$date"
 
-# Execute the Git command with the resolved date
-execute_git_command "$date" "$@"
+# Apply git environment variables
+apply_git_date_env "$time"
+
+# 🔧 Execute the actual Git command
+git "$@"

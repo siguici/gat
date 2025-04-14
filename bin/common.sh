@@ -1,34 +1,60 @@
 #!/bin/bash
 
-# Helper function to convert relative date to absolute date
-# Handles days offsets like -1d, +3d, etc.
-get_date_from_offset() {
-  local offset=$1
-  # If offset is 'yesterday', convert to -1d
-  if [ "$offset" == "yesterday" ]; then
-    offset="-1d"
-  fi
-  # Use 'date' to compute the desired date
-  date --date="$offset" "+%Y-%m-%d %H:%M:%S"
+function validate_date() {
+    local input="$1"
+    local resolved
+
+    # Support some shortcuts
+    case "$input" in
+        now) resolved=$(date) ;;
+        yesterday) resolved=$(date --date="yesterday") ;;
+        tomorrow) resolved=$(date --date="tomorrow") ;;
+        -*|+*) resolved=$(date --date="$input") ;; # relative like -1d, +2h
+        *)
+            # Try absolute date
+            resolved=$(date --date="$input" 2>/dev/null)
+            if [[ $? -ne 0 ]]; then
+                echo "Invalid date format: $input"
+                exit 1
+            fi
+            ;;
+    esac
+
+    # Save the resolved date
+    export RESOLVED_DATE="$resolved"
 }
 
-# Function to verify date format
-validate_date() {
-  local date="$1"
-  # Regex to validate formats like 2023-12-25, +1d, -2d, etc.
-  if [[ ! "$date" =~ ^(202[0-9]-[0-1][0-9]-[0-3][0-9]|[+-]?[0-9]+[dD]|yesterday|tomorrow)$ ]]; then
-    echo "Invalid date format: $date"
-    exit 1
-  fi
+function apply_git_date_env() {
+    local time="$1"
+
+    local final_date="$RESOLVED_DATE"
+
+    # Inject time if given
+    if [[ -n "$time" ]]; then
+        final_date="$(date --date="$RESOLVED_DATE $time")"
+    fi
+
+    export GIT_AUTHOR_DATE="$final_date"
+    export GIT_COMMITTER_DATE="$final_date"
 }
 
-# Function to parse and execute the Git command with custom date
-execute_git_command() {
-  local date="$1"
-  shift
-  # Get the absolute date using the offset
-  resolved_date=$(get_date_from_offset "$date")
+function extract_time_flag() {
+    local time=""
+    local args=()
+    while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+            --time)
+                shift
+                time="$1"
+                ;;
+            *)
+                args+=("$1")
+                ;;
+        esac
+        shift
+    done
 
-  # Apply the date to the GIT_COMMITTER_DATE and GIT_AUTHOR_DATE environment variables
-  GIT_COMMITTER_DATE="$resolved_date" GIT_AUTHOR_DATE="$resolved_date" git "$@"
+    # Restore positional args
+    set -- "${args[@]}"
+    echo "$time"
 }
