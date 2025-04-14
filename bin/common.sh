@@ -1,48 +1,47 @@
 #!/bin/bash
 
-# Validate the provided date string
+# Validate the provided date string.
+# Accepts keywords like: now, today, yesterday, tomorrow,
+# or relative dates ending with d/w/m (e.g. -1d, +2w) or absolute dates.
 function validate_date() {
     local input="$1"
-
     case "$input" in
-        now|today|yesterday|tomorrow|[+-]*[dwm]) return 0 ;;
+        now|today|yesterday|tomorrow|[+-]*[dwm])
+            return 0
+            ;;
     esac
-
     if ! date -d "$input" >/dev/null 2>&1; then
         echo "Invalid date format: $input"
         exit 1
     fi
 }
 
-# Resolve date string to proper GIT_COMMITTER_DATE format
+# Resolve a date (relative or absolute) with an optional time override.
+# Output format: ISO 8601 (YYYY-MM-DDTHH:MM:SS+ZZZZ)
 function resolve_git_date() {
     local input="$1"
     local time="$2"
-
     local datetime
 
+    # Si le format relatif (ex: -1d, +2w, etc.)
     if [[ "$input" =~ ^[+-][0-9]+[dwm]$ ]]; then
-        # Convert relative date
         local unit="${input: -1}"
         local number="${input:0:-1}"
         case "$unit" in
-            d) datetime=$(date -d "$number days" "+%a %b %e %T %Y %z") ;;
-            w) datetime=$(date -d "$((number * 7)) days" "+%a %b %e %T %Y %z") ;;
-            m) datetime=$(date -d "$number month" "+%a %b %e %T %Y %z") ;;
+            d) datetime=$(date -d "$number days" "+%Y-%m-%dT%T%z") ;;
+            w) datetime=$(date -d "$((number * 7)) days" "+%Y-%m-%dT%T%z") ;;
+            m) datetime=$(date -d "$number month" "+%Y-%m-%dT%T%z") ;;
         esac
     else
-        # Absolute date or supported keyword
         if [[ -n "$time" ]]; then
-            datetime=$(date -d "$input $time" "+%a %b %e %T %Y %z")
+            datetime=$(date -d "$input $time" "+%Y-%m-%dT%T%z")
         else
-            datetime=$(date -d "$input" "+%a %b %e %T %Y %z")
+            datetime=$(date -d "$input" "+%Y-%m-%dT%T%z")
         fi
     fi
-
     echo "$datetime"
 }
 
-# Extract the --time value if passed
 function extract_time_flag() {
     local args=("$@")
     for ((i = 0; i < ${#args[@]}; i++)); do
@@ -54,12 +53,10 @@ function extract_time_flag() {
     echo ""
 }
 
-# Remove --time and its value from arguments
 function strip_time_flag() {
-    local args=("$@")
-    local result=()
     local skip_next=false
-    for arg in "${args[@]}"; do
+    local result=()
+    for arg in "$@"; do
         if $skip_next; then
             skip_next=false
             continue
@@ -70,18 +67,19 @@ function strip_time_flag() {
         fi
         result+=("$arg")
     done
-    echo "${result[@]}"
+
+    for item in "${result[@]}"; do
+        printf '%s\n' "$item"
+    done
 }
 
-# Execute the actual Git command with proper environment
 function execute_git_command() {
-    local date="$1"
+    local date_input="$1"
     shift
-
-    local time=$(extract_time_flag "$@")
-    local git_date=$(resolve_git_date "$date" "$time")
-    local args=($(strip_time_flag "$@"))
-
-    # Run Git command with overridden author/committer dates
+    local time
+    time=$(extract_time_flag "$@")
+    local git_date
+    git_date=$(resolve_git_date "$date_input" "$time")
+    mapfile -t args < <(strip_time_flag "$@")
     GIT_AUTHOR_DATE="$git_date" GIT_COMMITTER_DATE="$git_date" git "${args[@]}"
 }
