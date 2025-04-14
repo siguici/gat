@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Include common functions for date validation and git commands
-source "$(dirname "$0")/common.sh"
+source "$(dirname "$0")/utils.sh"
 
 # Ensure enough arguments are provided
 if [ "$#" -lt 2 ]; then
