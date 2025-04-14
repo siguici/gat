@@ -1,20 +1,21 @@
 #!/usr/bin/env bash
 
-set -e
+set -euo pipefail
 
+# Path to the gat script
 GAT_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/gat"
 if [[ ! -x "$GAT_SCRIPT" ]]; then
   echo "❌ Error: $GAT_SCRIPT not found or not executable"
   exit 1
 fi
 
+# Create temporary Git repo
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
 cd "$TMP_DIR"
 
+# Initialize Git repository and make initial commits
 git init -q
-echo "Temporary test repo created at $TMP_DIR"
-
 echo "Initial content" > file.txt
 git add file.txt
 git commit -m "Initial commit" > /dev/null
@@ -23,21 +24,43 @@ echo "More content" > file2.txt
 git add file2.txt
 git commit -m "Add file2.txt" > /dev/null
 
+# Create a feature branch and commit some changes
 git checkout -b feature-branch
-echo "Feature change" >> feature.txt
+echo "Feature change" > feature.txt
 git add feature.txt
 git commit -m "Feature commit" > /dev/null
 FEATURE_COMMIT=$(git rev-parse HEAD)
+
+# Create a second commit for cherry-pick testing
+echo "Another feature" > extra.txt
+git add extra.txt
+git commit -m "Extra feature commit" > /dev/null
+SECOND_FEATURE_COMMIT=$(git rev-parse HEAD)
+
 git checkout main
 
+# Utility to optionally modify a file if needed (for commits)
+prepare_commit_if_needed() {
+  local args=("$@")
+  for arg in "${args[@]}"; do
+    if [[ "$arg" == "commit" ]]; then
+      echo "Test change at $(date)" >> file.txt
+      git add file.txt
+      break
+    fi
+  done
+}
+
 run_test() {
-  echo "➡️  Test: $1"
+  local description="$1"
   shift
-  if [[ "$1" == "commit" ]]; then
-    echo "Modifying file.txt" >> file.txt
-    git add file.txt
-  fi
-  if "$GAT_SCRIPT" "$@"; then
+  local args=("$@")
+
+  echo "➡️  Test: $description"
+
+  prepare_commit_if_needed "${args[@]}"
+
+  if "$GAT_SCRIPT" "${args[@]}"; then
     echo "✅ Passed"
   else
     echo "❌ Failed"
@@ -45,16 +68,29 @@ run_test() {
   echo "-----------------------------"
 }
 
-run_test "Commit with yesterday's date" yesterday commit -am "Test commit with yesterday's date"
+run_test_expect_failure() {
+  local description="$1"
+  shift
+  local args=("$@")
 
-run_test "Commit with specific date" 2023-03-15 commit -am "Test commit on March 15th, 2023"
+  echo "➡️  Test (expect failure): $description"
 
+  if "$GAT_SCRIPT" "${args[@]}"; then
+    echo "❌ Unexpected success"
+  else
+    echo "✅ Correctly failed"
+  fi
+  echo "-----------------------------"
+}
+
+# 🧪 Run the tests
+run_test "Commit with yesterday's date" yesterday commit -am "Commit with yesterday's date"
+run_test "Commit with specific date" 2023-03-15 commit -am "Commit on March 15th, 2023"
 run_test "Merge with relative date -2d" -2d merge --no-ff -m "Merge test" feature-branch
+run_test "Cherry-pick with time" 2024-01-01 cherry-pick "$SECOND_FEATURE_COMMIT" --time 10:30
+run_test_expect_failure "Invalid date format" invalid-date commit -am "This should fail"
 
-run_test "Cherry-pick with time" 2024-01-01 cherry-pick "$FEATURE_COMMIT" --time 10:30
-
-run_test "Invalid date format" invalid-date commit -am "This should fail"
-
+# 📜 Output Git log
 echo
 echo "🧾 Git log for inspection:"
 git log --pretty=format:"%h %ad %s" --date=iso

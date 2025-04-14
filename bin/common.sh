@@ -1,29 +1,24 @@
 #!/bin/bash
 
-# Validate the provided date string.
-# Accepts keywords like: now, today, yesterday, tomorrow,
-# or relative dates ending with d/w/m (e.g. -1d, +2w) or absolute dates.
+# Validate if the date is in a correct format
 function validate_date() {
     local input="$1"
     case "$input" in
-        now|today|yesterday|tomorrow|[+-]*[dwm])
-            return 0
-            ;;
+        now|today|yesterday|tomorrow|[+-]*[dwm]) return 0 ;;  # Valid formats
     esac
     if ! date -d "$input" >/dev/null 2>&1; then
-        echo "Invalid date format: $input"
+        echo "❌ Invalid date format: $input"
         exit 1
     fi
 }
 
-# Resolve a date (relative or absolute) with an optional time override.
-# Output format: ISO 8601 (YYYY-MM-DDTHH:MM:SS+ZZZZ)
+# Resolve a date with optional time flag
 function resolve_git_date() {
     local input="$1"
     local time="$2"
     local datetime
 
-    # Si le format relatif (ex: -1d, +2w, etc.)
+    # Handle relative dates like -1d, +2w
     if [[ "$input" =~ ^[+-][0-9]+[dwm]$ ]]; then
         local unit="${input: -1}"
         local number="${input:0:-1}"
@@ -33,6 +28,7 @@ function resolve_git_date() {
             m) datetime=$(date -d "$number month" "+%Y-%m-%dT%T%z") ;;
         esac
     else
+        # Handle absolute dates or with time override
         if [[ -n "$time" ]]; then
             datetime=$(date -d "$input $time" "+%Y-%m-%dT%T%z")
         else
@@ -42,6 +38,7 @@ function resolve_git_date() {
     echo "$datetime"
 }
 
+# Extract time flag from command arguments
 function extract_time_flag() {
     local args=("$@")
     for ((i = 0; i < ${#args[@]}; i++)); do
@@ -53,6 +50,7 @@ function extract_time_flag() {
     echo ""
 }
 
+# Remove the --time flag from command arguments
 function strip_time_flag() {
     local skip_next=false
     local result=()
@@ -68,11 +66,13 @@ function strip_time_flag() {
         result+=("$arg")
     done
 
+    # Output remaining arguments
     for item in "${result[@]}"; do
         printf '%s\n' "$item"
     done
 }
 
+# Execute the git command with modified date environment
 function execute_git_command() {
     local date_input="$1"
     shift
