@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Include common functions
+source "$(dirname "$0")/common.sh"
+
+# Check if we have at least 2 arguments (date + git subcommand)
+if [ "$#" -lt 2 ]; then
+  echo "Usage: gat <date> <git-subcommand> [options]"
+  exit 1
+fi
+
+# First argument is the date (could be relative or absolute)
+date="$1"
+shift
+
+# Validate the date format
+validate_date "$date"
+
+# Execute the Git command with the resolved date
+execute_git_command "$date" "$@"
